@@ -1,4 +1,5 @@
 use std::time::Duration;
+use std::env;
 
 use axum::{
   extract::{path, Path, State},
@@ -17,7 +18,15 @@ use tokio::net::TcpListener;
 async fn main() {
 
     //ENV SETUP
-    dotenvy::dotenv().expect("unable to load .env file");
+    // Only load `.env` file in development
+
+    if env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()) == "development" {
+        dotenvy::dotenv().ok();  // Load `.env` in development environment
+        println!("Loaded .env file");
+    } else {
+        println!("Loading prod env");
+    }
+
 
     //VARIABLES FROM ENV
     let url = std::env::var("DATABASE_URL")
