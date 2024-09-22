@@ -1,12 +1,12 @@
 use std::time::Duration;
 use std::env;
+use axum::response::IntoResponse;
 use axum::Json;
 
 use axum::{
   extract::{path, Path, State},
   http::StatusCode,
-  routing::{get, patch},
-  Json, Router,
+  routing::{get, patch},Router,
 };
 use axum::http::header::IF_MATCH;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,13 @@ async fn main() {
     println!("Hello, world!");
 }
 
+#[derive(Serialize)]
+struct Response<T> {
+    status: bool,
+    message: Option<String>,
+    data: Option<T>,
+}
+
 
 #[derive(Serialize)]
 struct Orders {
@@ -72,19 +79,35 @@ struct Orders {
 
 async fn get_orders(
     State(pg_pool): State<PgPool>
-) -> Result<(StatusCode, String),(StatusCode, String)>{
+) -> Result<
+    (StatusCode, Json<Response<Vec<Orders>>>),
+    (StatusCode, Json<Response<()>>)
+    >
+     {
+
     let tr = sqlx::query_as!(Orders, "SELECT * FROM orders ORDER BY id")
     .fetch_all(&pg_pool)
     .await
-    .map_err(|e|(StatusCode::INTERNAL_SERVER_ERROR, 
-        json!({"status": false, "message": "orders retrieved"}).to_string(),
-    ))?;
+    .map_err(|_| {
+        let error_response = Response {
+            status: false,
+            message: Some("Error retrieving orders".to_owned()),
+            data: None,
+        };
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+    })?;
 
+
+    let data = Response {
+        status: true,
+        message: Some("found orders".to_owned()),
+        data: Some(tr)
+    };
 
 
     Ok((
         StatusCode::OK,
-        Json(json!({"status": true, "data": tr}).to_string()),
+        Json(data),
     ))
 }
 
@@ -101,10 +124,14 @@ struct CreateOrdersRow {
     id: i32
 }
 
+
 async fn add_order(
     State(pg_pool): State<PgPool>,
     Json(order): Json<CreateOrdersReq>,
-) -> Result<(StatusCode, String),(StatusCode, String)>{
+) -> Result<
+    (StatusCode, Json<Response<CreateOrdersRow>>),
+    (StatusCode, Json<Response<()>>)
+>{
     let co = sqlx::query_as!(
     CreateOrdersRow, 
     "INSERT INTO orders (name, coffee_name, size, total) VALUES ($1, $2, $3, $4) RETURNING id", 
@@ -114,14 +141,26 @@ async fn add_order(
     order.total)
     .fetch_one(&pg_pool)
     .await
-    .map_err(|e|(StatusCode::INTERNAL_SERVER_ERROR, 
-        json!({"status": false, "message": "error adding order to db"}).to_string(),
-    ))?;
+        .map_err(|_| {
+            let error_response = Response {
+                status: false,
+                message: Some("Error adding order".to_owned()),
+                data: None,
+            };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })?;
+
+    let data = Response {
+        status: true,
+        message: Some("added successfully".to_owned()),
+        data: Some(co)
+    };
 
     Ok((
-        StatusCode::CREATED,
-        Json(json!({"status": true, "data": co}).to_string()),
+        StatusCode::OK,
+        Json(data),
     ))
+
 }
 
 
@@ -139,7 +178,10 @@ async fn update_order(
     Path(id): Path<i32>,
     Json(order): Json<UpdateOrdersReq>,
 
-) -> Result<(StatusCode, String),(StatusCode, String)>{
+) -> Result<
+    (StatusCode, Json<Response<CreateOrdersRow>>),
+    (StatusCode, Json<Response<()>>)
+>{
 
     let mut q = "UPDATE orders SET id = $1".to_owned();
 
@@ -187,19 +229,34 @@ async fn update_order(
 
     s.execute(&pg_pool)
         .await
-        .map_err(|e|(StatusCode::INTERNAL_SERVER_ERROR, 
-            json!({"status": false, "message": "error updating order"}).to_string(),
-        ))?;
+        .map_err(|_| {
+            let error_response = Response {
+                status: false,
+                message: Some("Error updating order".to_owned()),
+                data: None,
+            };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })?;
+    
+        let data = Response {
+            status: true,
+            message: None,
+            data: None
+        };
+    
     
         Ok((
             StatusCode::OK,
-            Json(json!({"status": true}).to_string()),
+            Json(data),
         ))
 }
 async fn delete_order(
     Path(id): Path<i32>,
     State(pg_pool): State<PgPool>
-) -> Result<(StatusCode, String),(StatusCode, String)>{
+) -> Result<
+    (StatusCode, Json<Response<CreateOrdersRow>>),
+    (StatusCode, Json<Response<()>>)
+>{
     sqlx::query!(
         "
         DELETE FROM orders
@@ -209,14 +266,26 @@ async fn delete_order(
         )
         .execute(&pg_pool)
         .await
-        .map_err(|e|(StatusCode::INTERNAL_SERVER_ERROR,
-                     json!({"status": false, "message": "error updating order"}).to_string(),
-        ))?;
+        .map_err(|_|{
+            let error_response = Response {
+                status: false,
+                message: Some("Error deleting order".to_owned()),
+                data: None,
+            };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })?;
 
-    Ok((
-        StatusCode::OK,
-        Json(json!({"status": true}).to_string()),
-    ))
+        let data = Response {
+            status: true,
+            message: None,
+            data: None
+        };
+    
+    
+        Ok((
+            StatusCode::OK,
+            Json(data),
+        ))
 }
 
 
