@@ -1,5 +1,6 @@
 use std::time::Duration;
 use std::env;
+use axum::Json;
 
 use axum::{
   extract::{path, Path, State},
@@ -83,7 +84,7 @@ async fn get_orders(
 
     Ok((
         StatusCode::OK,
-        json!({"status": true, "data": tr}).to_string(),
+        Json(json!({"status": true, "data": tr}).to_string()),
     ))
 }
 
@@ -119,7 +120,7 @@ async fn add_order(
 
     Ok((
         StatusCode::CREATED,
-        json!({"status": true, "data": co}).to_string(),
+        Json(json!({"status": true, "data": co}).to_string()),
     ))
 }
 
@@ -191,8 +192,8 @@ async fn update_order(
         ))?;
     
         Ok((
-            StatusCode::CREATED,
-            json!({"status": true}).to_string(),
+            StatusCode::OK,
+            Json(json!({"status": true}).to_string()),
         ))
 }
 async fn delete_order(
@@ -214,7 +215,7 @@ async fn delete_order(
 
     Ok((
         StatusCode::OK,
-        json!({"status": true}).to_string(),
+        Json(json!({"status": true}).to_string()),
     ))
 }
 
