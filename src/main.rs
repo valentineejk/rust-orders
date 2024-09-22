@@ -40,7 +40,7 @@ async fn main() {
     .expect("cannot connect to database");
 
     //TCP
-    let lis = TcpListener::bind("127.0.0.1:3000".to_owned())
+    let lis = TcpListener::bind("0.0.0.0:3000".to_owned())
     .await
     .expect("could not create tcp listener");
 
